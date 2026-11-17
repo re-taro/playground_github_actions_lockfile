@@ -1,0 +1,22 @@
+name: probe
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      # action の解決より前の step。これが実行されていれば「step 到達時に失敗」、
+      # 実行されていなければ「Set up job で失敗」と判断する。
+      - name: before-action
+        run: echo "BEFORE_ACTION_STEP_RAN event=${{ github.event_name }} sha=${{ github.sha }}"
+      - uses: actions/checkout@v4.2.2
+      - name: after-action
+        run: echo "AFTER_ACTION_STEP_RAN"
