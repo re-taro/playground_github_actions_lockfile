@@ -17,6 +17,6 @@ jobs:
       # 実行されていなければ「Set up job で失敗」と判断する。
       - name: before-action
         run: echo "BEFORE_ACTION_STEP_RAN event=${{ github.event_name }} sha=${{ github.sha }}"
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4.2.1
       - name: after-action
         run: echo "AFTER_ACTION_STEP_RAN"
