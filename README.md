@@ -52,6 +52,25 @@ GitHub Actions の workflow dependency lockfile (`.github/workflows/actions.lock
 3. エントリがあり SHA がタグの履歴内 → **lockfile の SHA で普通に実行される** (実行時の検知なし。verify とレビューだけが防御)
 4. workflow が lockfile 未登録 → lockfile を使わず従来どおりタグ解決 (Require lockfile ポリシーなしの場合)
 
+## Require lockfile ポリシーを有効にした場合
+
+リポジトリの Settings → Actions → Policies で作成 (UI のみ。公開 REST スキーマには rule type が未掲載)。
+API 上は `{"type": "require_lockfile"}`、`enforcement: active`、`workflow_path.include: ["~ALL"]`。
+
+`workflow_dispatch` / `pull_request` (rerun・reopen) で再実行した結果:
+
+| ブランチ | ポリシーなし | ポリシーあり |
+|---|---|---|
+| `main` | ✅ success | ✅ success |
+| `case/1a`・`1b`・`2a` | ❌ startup_failure (`Invalid lockfile`) | ❌ 変化なし。`workflow_dispatch` は API が 422 (`failed to parse workflow: Invalid dependency lockfile ...`) で拒否 |
+| `case/2b-lockfile-older-commit` | ✅ `e3d2460` で実行 | ✅ **変化なし。古いコミットで実行される** |
+| `case/2c-lockfile-unrelated-commit` | ❌ Set up job で失敗 | ❌ 変化なし |
+| `case/3-lockfile-stale-entry` | ✅ success | ✅ 変化なし |
+| `case/4` の `probe-unonboarded.yml` | ✅ タグ解決で実行 | ❌ **startup_failure**: `Workflow is not in the repository's lockfile. Run gh actions-lock ...` |
+
+ポリシーが変えるのは「lockfile 未登録の workflow が lockfile なしで動く」ケースだけ。
+登録済み workflow の不整合はポリシーなしでも実行時に弾かれ、2b (タグ履歴内の古いコミットへの書き換え) はポリシーがあっても防げない。
+
 ## 手順
 
 1. GitHub に `re-taro/playground_github_actions_lockfile` を作成し、remote を追加する
