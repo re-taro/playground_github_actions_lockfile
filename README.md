@@ -33,14 +33,24 @@ GitHub Actions の workflow dependency lockfile (`.github/workflows/actions.lock
 
 | ブランチ | 変更 | `--verify` | 実行時の予想 | 結果 |
 |---|---|---|---|---|
-| `main` | なし | ok | lockfile の SHA (`11bd719`) で実行 | |
-| `case/1a-workflow-ref-changed` | workflow の `uses:` だけ `v4.2.1` に | `ref-changed`, `stale` | missing pin で失敗 | |
-| `case/1b-workflow-new-action` | workflow に `actions/setup-node@v4.4.0` を追加 | `not-pinned` | missing pin で失敗 | |
-| `case/2a-lockfile-ref-changed` | lockfile の ref だけ `v4.2.1` に (SHA も v4.2.1 のもの) | `ref-changed`, `stale` | missing pin で失敗 | |
-| `case/2b-lockfile-older-commit` | lockfile の SHA を `v4.2.2` の親コミットに | `tag-commit-mismatch` | **古いコミット (`e3d2460`) で実行される** | |
-| `case/2c-lockfile-unrelated-commit` | lockfile の SHA を履歴外のコミットに | `unreachable-pin` | 実行時に拒否 | |
-| `case/3-lockfile-stale-entry` | lockfile に未使用エントリを追加 | `stale` | 影響なしで成功 | |
-| `case/4-unonboarded-workflow` | lockfile 未登録の workflow `probe-unonboarded.yml` を追加 | `not-pinned` | lockfile を使わずタグ解決で実行 (Require lockfile ポリシーなし) | |
+| `main` | なし | ok | lockfile の SHA (`11bd719`) で実行 | ✅ success。`11bd719` を取得 |
+| `case/1a-workflow-ref-changed` | workflow の `uses:` だけ `v4.2.1` に | `ref-changed`, `stale` | missing pin で失敗 | ❌ **startup_failure**。`Invalid lockfile: The lockfile is missing actions/checkout@v4.2.1` |
+| `case/1b-workflow-new-action` | workflow に `actions/setup-node@v4.4.0` を追加 | `not-pinned` | missing pin で失敗 | ❌ **startup_failure**。`Invalid lockfile: The lockfile is missing actions/setup-node@v4.4.0` |
+| `case/2a-lockfile-ref-changed` | lockfile の ref だけ `v4.2.1` に (SHA も v4.2.1 のもの) | `ref-changed`, `stale` | missing pin で失敗 | ❌ **startup_failure**。`Invalid lockfile: The lockfile is missing actions/checkout@v4.2.2` |
+| `case/2b-lockfile-older-commit` | lockfile の SHA を `v4.2.2` の親コミットに | `tag-commit-mismatch` | **古いコミット (`e3d2460`) で実行される** | ✅ success ⚠️ **`e3d2460` (古いコミット) で実行された** |
+| `case/2c-lockfile-unrelated-commit` | lockfile の SHA を履歴外のコミットに | `unreachable-pin` | 実行時に拒否 | ❌ failure。Set up job で `Unable to resolve action actions/checkout@v4.2.2, unable to find version 436c656…` (step は 1 つも実行されない) |
+| `case/3-lockfile-stale-entry` | lockfile に未使用エントリを追加 | `stale` | 影響なしで成功 | ✅ success。影響なし |
+| `case/4-unonboarded-workflow` | lockfile 未登録の workflow `probe-unonboarded.yml` を追加 | `not-pinned` | lockfile を使わずタグ解決で実行 (Require lockfile ポリシーなし) | ✅ success。`probe-unonboarded` は `Using locked action versions` が出ず、タグ解決で実行 |
+
+結果は `push` / `pull_request` (PR #1〜#7) のどちらでも同一。
+`pull_request` では merge commit 上の lockfile (= PR 側の変更を含むもの) が使われる (2b で確認)。
+
+### まとめ
+
+1. workflow が参照する `owner/repo@ref` が lockfile に無い → **run 自体が起動しない** (startup_failure / `Invalid lockfile`)。workflow 側・lockfile 側どちらの変更でも同じ
+2. エントリはあるが SHA が取得できない → Set up job で失敗
+3. エントリがあり SHA がタグの履歴内 → **lockfile の SHA で普通に実行される** (実行時の検知なし。verify とレビューだけが防御)
+4. workflow が lockfile 未登録 → lockfile を使わず従来どおりタグ解決 (Require lockfile ポリシーなしの場合)
 
 ## 手順
 

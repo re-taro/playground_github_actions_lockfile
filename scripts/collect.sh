@@ -40,6 +40,13 @@ for b in "${branches[@]}"; do
             -q '.[] | "  annotation[\(.annotation_level)]: \(.message)"' 2>/dev/null || true
         done
 
+        # startup_failure は job が作られず API でメッセージが取れないので、Web の annotations を取得する (public repo 前提)
+        if [ "$(jq -r .conclusion <<<"$run")" = "startup_failure" ]; then
+          curl -sL -H 'X-Requested-With: XMLHttpRequest' "https://github.com/$repo/actions/runs/$id/annotations_partial" \
+            | sed -e 's/<[^>]*>/ /g' -e 's/&quot;/"/g' -e "s/&#39;/'/g" -e 's/&lt;/</g;s/&gt;/>/g;s/&amp;/\&/g' \
+            | tr -s ' \n' | grep -v -E '^ *$|data-|<div|^ *>|Show (more|less)' | sed 's/^/  startup: /' || true
+        fi
+
         echo "  --- log (filtered)"
         gh run view -R "$repo" "$id" --log 2>/dev/null \
           | grep -E "$pattern" | grep -v -E '^\S+\s+\S+\s+\S+\s+\^\[\[36;1m' | sed 's/^/  /' | head -40 || true
